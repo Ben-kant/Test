@@ -1,0 +1,180 @@
+trigger:
+  branches:
+    include:
+      - main
+  tags:
+    include:
+      - v*
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  - group: flexischools-shared
+  - name: awsRegion
+    value: ap-southeast-2
+  - name: imageRepository
+    value: flexischools-order-service
+  - name: stackName
+    value: FlexischoolsOrderProcessingStack
+  - name: nodeVersion
+    value: '20.x'
+
+stages:
+  - stage: Validate
+    displayName: Validate and Test
+    jobs:
+      - job: Validate
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: npm ci
+            displayName: Install dependencies
+
+          - script: npm run build
+            displayName: Build TypeScript
+
+          - script: npm test -- --ci
+            displayName: Run unit tests
+
+          - script: npx cdk synth
+            displayName: CDK synth
+
+  - stage: Build
+    displayName: Build and Publish Artifact
+    dependsOn: Validate
+    condition: succeeded()
+    jobs:
+      - job: BuildImage
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: npm ci
+            displayName: Install dependencies
+
+          - bash: |
+              aws --version
+              ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+              IMAGE_TAG=$(Build.BuildId)
+              echo "##vso[task.setvariable variable=ACCOUNT_ID]$ACCOUNT_ID"
+              echo "##vso[task.setvariable variable=IMAGE_TAG]$IMAGE_TAG"
+            displayName: Resolve AWS account and image tag
+            env:
+              AWS_ACCESS_KEY_ID: $(awsAccessKeyId)
+              AWS_SECRET_ACCESS_KEY: $(awsSecretAccessKey)
+              AWS_DEFAULT_REGION: $(awsRegion)
+
+          - bash: |
+              aws ecr get-login-password --region $(awsRegion) | \
+              docker login --username AWS --password-stdin $(ACCOUNT_ID).dkr.ecr.$(awsRegion).amazonaws.com
+
+              docker build -t $(imageRepository):$(IMAGE_TAG) .
+              docker tag $(imageRepository):$(IMAGE_TAG) $(ACCOUNT_ID).dkr.ecr.$(awsRegion).amazonaws.com/$(imageRepository):$(IMAGE_TAG)
+              docker push $(ACCOUNT_ID).dkr.ecr.$(awsRegion).amazonaws.com/$(imageRepository):$(IMAGE_TAG)
+            displayName: Build and push Docker image
+            env:
+              AWS_ACCESS_KEY_ID: $(awsAccessKeyId)
+              AWS_SECRET_ACCESS_KEY: $(awsSecretAccessKey)
+              AWS_DEFAULT_REGION: $(awsRegion)
+
+          - script: npx cdk synth > /tmp/cdk.out.yaml
+            displayName: Synthesize CDK template
+
+          - publish: /tmp/cdk.out.yaml
+            artifact: cdk-template
+
+  - stage: Deploy_Dev
+    displayName: Deploy to Dev
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - deployment: DeployDev
+        environment: dev
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: NodeTool@0
+                  inputs:
+                    versionSpec: $(nodeVersion)
+
+                - script: npm ci
+                  displayName: Install dependencies
+
+                - bash: |
+                    npx cdk deploy $(stackName) \
+                      --require-approval never \
+                      -c imageTag=$(Build.BuildId)
+                  displayName: Deploy CDK stack to dev
+                  env:
+                    AWS_ACCESS_KEY_ID: $(awsAccessKeyId)
+                    AWS_SECRET_ACCESS_KEY: $(awsSecretAccessKey)
+                    AWS_DEFAULT_REGION: $(awsRegion)
+
+                - bash: |
+                    ./scripts/run-migrations.sh dev
+                  displayName: Run DB migrations
+                  env:
+                    DB_SECRET_ARN: $(dbSecretArn)
+                    AWS_ACCESS_KEY_ID: $(awsAccessKeyId)
+                    AWS_SECRET_ACCESS_KEY: $(awsSecretAccessKey)
+                    AWS_DEFAULT_REGION: $(awsRegion)
+
+                - bash: |
+                    ./scripts/smoke-test.sh dev
+                  displayName: Smoke test dev
+
+  - stage: Deploy_Prod
+    displayName: Deploy to Production
+    dependsOn: Deploy_Dev
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+    jobs:
+      - deployment: DeployProd
+        environment: prod
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: NodeTool@0
+                  inputs:
+                    versionSpec: $(nodeVersion)
+
+                - script: npm ci
+                  displayName: Install dependencies
+
+                - bash: |
+                    npx cdk deploy $(stackName) \
+                      --require-approval never \
+                      -c imageTag=$(Build.BuildId)
+                  displayName: Deploy CDK stack to prod
+                  env:
+                    AWS_ACCESS_KEY_ID: $(awsAccessKeyId)
+                    AWS_SECRET_ACCESS_KEY: $(awsSecretAccessKey)
+                    AWS_DEFAULT_REGION: $(awsRegion)
+
+                - bash: |
+                    ./scripts/run-migrations.sh prod
+                  displayName: Run DB migrations
+                  env:
+                    DB_SECRET_ARN: $(dbSecretArn)
+                    AWS_ACCESS_KEY_ID: $(awsAccessKeyId)
+                    AWS_SECRET_ACCESS_KEY: $(awsSecretAccessKey)
+                    AWS_DEFAULT_REGION: $(awsRegion)
+
+                - bash: |
+                    ./scripts/smoke-test.sh prod
+                  displayName: Smoke test prod
