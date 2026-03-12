@@ -10,6 +10,7 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as ecrAssets from 'aws-cdk-lib/aws-ecr-assets';
 import * as applicationautoscaling from 'aws-cdk-lib/aws-applicationautoscaling';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import * as path from 'path';
 
 
 export class OrderProcessingStack extends cdk.Stack {
@@ -57,7 +58,7 @@ export class OrderProcessingStack extends cdk.Stack {
 
     const parameterGroup = new rds.ParameterGroup(this, 'PostgresParameterGroup', {
       engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_16_3,
+        version: rds.PostgresEngineVersion.VER_16,
       }),
       parameters: {
         log_connections: '1',
@@ -69,19 +70,19 @@ export class OrderProcessingStack extends cdk.Stack {
 
     const database = new rds.DatabaseInstance(this, 'OrderProcessingDatabase', {
       engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_16_3,
+        version: rds.PostgresEngineVersion.VER_16,
       }),
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.MEDIUM),
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [dbSecurityGroup],
       credentials: rds.Credentials.fromSecret(dbCredentialsSecret),
       databaseName: 'ordersdb',
-      allocatedStorage: 50,
-      maxAllocatedStorage: 100,
+      allocatedStorage: 20,
+      maxAllocatedStorage: 50,
       storageEncrypted: true,
       multiAz: false,
-      backupRetention: cdk.Duration.days(7),
+      backupRetention: cdk.Duration.days(0),
       deletionProtection: false,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       deleteAutomatedBackups: true,
@@ -124,7 +125,7 @@ export class OrderProcessingStack extends cdk.Stack {
       cpu: 512,
       memoryLimitMiB: 1024,
       runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.X86_64,
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
       },
     });

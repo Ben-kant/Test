@@ -666,11 +666,11 @@
   "OrderProcessingDatabase08847AED": {
    "Type": "AWS::RDS::DBInstance",
    "Properties": {
-    "AllocatedStorage": "50",
+    "AllocatedStorage": "20",
     "AutoMinorVersionUpgrade": true,
-    "BackupRetentionPeriod": 7,
+    "BackupRetentionPeriod": 0,
     "CopyTagsToSnapshot": true,
-    "DBInstanceClass": "db.t3.medium",
+    "DBInstanceClass": "db.t4g.micro",
     "DBName": "ordersdb",
     "DBParameterGroupName": {
      "Ref": "PostgresParameterGroupC21E742E"
@@ -684,7 +684,7 @@
      "postgresql"
     ],
     "Engine": "postgres",
-    "EngineVersion": "16.3",
+    "EngineVersion": "16",
     "MasterUserPassword": {
      "Fn::Join": [
       "",
@@ -709,7 +709,7 @@
       ]
      ]
     },
-    "MaxAllocatedStorage": 100,
+    "MaxAllocatedStorage": 50,
     "MonitoringInterval": 60,
     "MonitoringRoleArn": {
      "Fn::GetAtt": [
@@ -1021,7 +1021,7 @@
        "Timeout": 5
       },
       "Image": {
-       "Fn::Sub": "076686458098.dkr.ecr.ap-southeast-2.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-076686458098-ap-southeast-2:da60f05f44a771ce0ae9065aa71dce464875294e84a263e1ede1260bef30b94d"
+       "Fn::Sub": "076686458098.dkr.ecr.ap-southeast-2.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-076686458098-ap-southeast-2:000130874bfa31ced3666b79cae72c8cf8c16f486f5ce7a430db694dad3746c3"
       },
       "LogConfiguration": {
        "LogDriver": "awslogs",
@@ -1086,7 +1086,7 @@
      "FARGATE"
     ],
     "RuntimePlatform": {
-     "CpuArchitecture": "X86_64",
+     "CpuArchitecture": "ARM64",
      "OperatingSystemFamily": "LINUX"
     },
     "TaskRoleArn": {

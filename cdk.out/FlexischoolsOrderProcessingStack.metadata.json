@@ -143,7 +143,7 @@
         "new FargateService2 (C:\\temp\\cdk-order-processing\\node_modules\\aws-cdk-lib\\core\\lib\\prop-injectable.js:1:681)",
         "new ApplicationLoadBalancedFargateService2 (C:\\temp\\cdk-order-processing\\node_modules\\aws-cdk-lib\\aws-ecs-patterns\\lib\\fargate\\application-load-balanced-fargate-service.js:1:6099)",
         "new ApplicationLoadBalancedFargateService2 (C:\\temp\\cdk-order-processing\\node_modules\\aws-cdk-lib\\core\\lib\\prop-injectable.js:1:681)",
-        "new OrderProcessingStack (C:\\temp\\cdk-order-processing\\lib\\order-processing-stack.ts:167:28)",
+        "new OrderProcessingStack (C:\\temp\\cdk-order-processing\\lib\\order-processing-stack.ts:169:28)",
         "Object.<anonymous> (C:\\temp\\cdk-order-processing\\bin\\app.ts:7:1)",
         "Module._compile (node:internal/modules/cjs/loader:1705:14)",
         "Module.m._compile (C:\\temp\\cdk-order-processing\\node_modules\\ts-node\\src\\index.ts:1618:23)",
